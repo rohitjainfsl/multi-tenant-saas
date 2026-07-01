@@ -1,0 +1,58 @@
+# NOTE: This file must live at the REPO ROOT under:
+#   .github/workflows/deploy-mlservice.yml
+# (not inside the ml-service/ folder itself)
+
+name: Deploy Python ML Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ml-service/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_WEBAPP_NAME: multi-tenant-mlservice
+  AZURE_WEBAPP_PACKAGE_PATH: ./ml-service
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies INTO the package folder
+        # Install directly into ml-service/ so they are included in the deployed zip.
+        # Without this, dependencies exist only on the CI runner and are absent at runtime.
+        run: |
+          cd ml-service
+          pip install -r requirements.txt --target="./.python_packages/lib/site-packages"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PYTHON }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      # ---- Option B: OIDC login (modern, recommended) ----
+      # - name: Azure Login
+      #   uses: azure/login@v2
+      #   with:
+      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # - name: Deploy to Azure Web App
+      #   uses: azure/webapps-deploy@v3
+      #   with:
+      #     app-name: ${{ env.AZURE_WEBAPP_NAME }}
+      #     package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

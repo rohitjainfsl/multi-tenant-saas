@@ -1,0 +1,40 @@
+name: Deploy Node.js Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'   # only triggers when backend code changes
+
+env:
+  AZURE_WEBAPP_NAME: multi-tenant-backend
+  AZURE_WEBAPP_PACKAGE_PATH: ./backend
+  NODE_VERSION: '22.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          npm install
+
+      - name: Build TypeScript
+        run: |
+          cd backend
+          npm run build
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_NODE }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
